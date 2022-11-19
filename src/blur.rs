@@ -306,6 +306,7 @@ impl RecursiveGaussian {
         let mut prev = vec![0f32; 3 * COLUMNS];
         let mut prev2 = vec![0f32; 3 * COLUMNS];
         let mut out = vec![0f32; 3 * COLUMNS];
+        let mut temp_out = vec![0f32; COLUMNS];
 
         let mut n = (-big_n) + 1;
         while n < height as isize {
@@ -350,13 +351,15 @@ impl RecursiveGaussian {
                 out[i3] = out3;
                 out[i5] = out5;
 
-                if n >= 0 {
-                    output[n as usize * width + i] = out1 + out3 + out5;
-                }
+                temp_out[i] = out1 + out3 + out5;
             }
 
             prev2.copy_from_slice(&prev);
             prev.copy_from_slice(&out);
+
+            if n >= 0 {
+                output[n as usize * width..][..COLUMNS].copy_from_slice(&temp_out);
+            }
 
             n += 1;
         }
