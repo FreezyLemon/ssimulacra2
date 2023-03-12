@@ -20,7 +20,7 @@ nalgebra = "0.32.2"
 num-traits = "0.2.15"
 rayon = { version = "1.5.3", optional = true }
 wide = "0.7.5"
-yuvxyb = "0.3.0"
+yuvxyb = { git = "https://github.com/FreezyLemon/yuvxyb", branch = "boxed-slices" }
 
 [dev-dependencies]
 criterion = "0.4.0"

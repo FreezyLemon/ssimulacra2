@@ -93,7 +93,7 @@ fn bench_ssimulacra2(c: &mut Criterion) {
     });
 }
 
-fn read_image(path: &str) -> ([Vec<f32>; 3], usize, usize) {
+fn read_image(path: &str) -> ([Box<[f32]>; 3], usize, usize) {
     // Read in test_data/tank_source.png
     let img = image::open(path).unwrap();
 
@@ -104,15 +104,20 @@ fn read_image(path: &str) -> ([Vec<f32>; 3], usize, usize) {
 
     let (width, height) = img.dimensions();
 
-    // Convert ImageBuffer to [Vec<f32>; 3]
-    let mut img_vec = [Vec::new(), Vec::new(), Vec::new()];
-    for (_i, pixel) in img.pixels().enumerate() {
-        img_vec[0].push(pixel[0] as f32);
-        img_vec[1].push(pixel[1] as f32);
-        img_vec[2].push(pixel[2] as f32);
+    let len = img.pixels().len();
+    let mut img_slice = [
+        vec![0f32; len].into_boxed_slice(),
+        vec![0f32; len].into_boxed_slice(),
+        vec![0f32; len].into_boxed_slice()
+    ];
+
+    for (i, pixel) in img.pixels().enumerate() {
+        img_slice[0][i] = pixel[0] as f32;
+        img_slice[1][i] = pixel[0] as f32;
+        img_slice[2][i] = pixel[0] as f32;
     }
 
-    (img_vec, width as usize, height as usize)
+    (img_slice, width as usize, height as usize)
 }
 
 fn bench_blur(c: &mut Criterion) {

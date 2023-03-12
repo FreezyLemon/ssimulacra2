@@ -27,7 +27,7 @@ impl Blur {
         self.height = height;
     }
 
-    pub fn blur(&mut self, img: &[Vec<f32>; 3]) -> [Vec<f32>; 3] {
+    pub fn blur(&mut self, img: &[Box<[f32]>; 3]) -> [Box<[f32]>; 3] {
         [
             self.blur_plane(&img[0]),
             self.blur_plane(&img[1]),
@@ -35,13 +35,13 @@ impl Blur {
         ]
     }
 
-    fn blur_plane(&mut self, plane: &[f32]) -> Vec<f32> {
+    fn blur_plane(&mut self, plane: &[f32]) -> Box<[f32]> {
         let mut out = vec![0f32; self.width * self.height];
         self.kernel
             .horizontal_pass(plane, &mut self.temp, self.width);
         self.kernel
             .vertical_pass_chunked::<128, 32>(&self.temp, &mut out, self.width, self.height);
-        out
+        out.into_boxed_slice()
     }
 }
 

@@ -78,9 +78,9 @@ pub fn compute_frame_ssimulacra2<T: TryInto<LinearRgb>, U: TryInto<LinearRgb>>(
     let mut height = img1.height();
 
     let mut mul = [
-        vec![0.0f32; width * height],
-        vec![0.0f32; width * height],
-        vec![0.0f32; width * height],
+        vec![0.0f32; width * height].into_boxed_slice(),
+        vec![0.0f32; width * height].into_boxed_slice(),
+        vec![0.0f32; width * height].into_boxed_slice(),
     ];
     let mut blur = Blur::new(width, height);
     let mut msssim = Msssim::default();
@@ -97,7 +97,9 @@ pub fn compute_frame_ssimulacra2<T: TryInto<LinearRgb>, U: TryInto<LinearRgb>>(
             height = img2.height();
         }
         for c in &mut mul {
-            c.truncate(width * height);
+            let mut a = c.to_vec();
+            a.truncate(width * height);
+            *c = a.into_boxed_slice();
         }
         blur.shrink_to(width, height);
 
@@ -109,8 +111,8 @@ pub fn compute_frame_ssimulacra2<T: TryInto<LinearRgb>, U: TryInto<LinearRgb>>(
 
         // SSIMULACRA2 works with the data in a planar format,
         // so we need to convert to that.
-        let img1 = xyb_to_planar(&img1);
-        let img2 = xyb_to_planar(&img2);
+        let img1 = xyb_to_planar(img1);
+        let img2 = xyb_to_planar(img2);
 
         image_multiply(&img1, &img1, &mut mul);
         let sigma1_sq = blur.blur(&mul);
@@ -136,17 +138,17 @@ pub fn compute_frame_ssimulacra2<T: TryInto<LinearRgb>, U: TryInto<LinearRgb>>(
 }
 
 fn make_positive_xyb(xyb: &mut Xyb) {
-    for pix in xyb.data_mut().iter_mut() {
+    for pix in xyb.data_mut() {
         pix[2] += 1.1f32 - pix[1];
         pix[0] += 0.5f32;
         pix[1] += 0.05f32;
     }
 }
 
-fn xyb_to_planar(xyb: &Xyb) -> [Vec<f32>; 3] {
-    let mut out1 = vec![0.0f32; xyb.width() * xyb.height()];
-    let mut out2 = vec![0.0f32; xyb.width() * xyb.height()];
-    let mut out3 = vec![0.0f32; xyb.width() * xyb.height()];
+fn xyb_to_planar(xyb: Xyb) -> [Box<[f32]>; 3] {
+    let mut out1 = vec![0.0f32; xyb.width() * xyb.height()].into_boxed_slice();
+    let mut out2 = vec![0.0f32; xyb.width() * xyb.height()].into_boxed_slice();
+    let mut out3 = vec![0.0f32; xyb.width() * xyb.height()].into_boxed_slice();
     for (((i, o1), o2), o3) in xyb
         .data()
         .iter()
@@ -163,7 +165,7 @@ fn xyb_to_planar(xyb: &Xyb) -> [Vec<f32>; 3] {
     [out1, out2, out3]
 }
 
-fn image_multiply(img1: &[Vec<f32>; 3], img2: &[Vec<f32>; 3], out: &mut [Vec<f32>; 3]) {
+fn image_multiply(img1: &[Box<[f32]>; 3], img2: &[Box<[f32]>; 3], out: &mut [Box<[f32]>; 3]) {
     for ((plane1, plane2), out_plane) in img1.iter().zip(img2.iter()).zip(out.iter_mut()) {
         for ((&p1, &p2), o) in plane1.iter().zip(plane2.iter()).zip(out_plane.iter_mut()) {
             *o = p1 * p2;
@@ -177,7 +179,8 @@ fn downscale_by_2(in_data: &LinearRgb) -> LinearRgb {
     let in_h = in_data.height();
     let out_w = (in_w + SCALE - 1) / SCALE;
     let out_h = (in_h + SCALE - 1) / SCALE;
-    let mut out_data = vec![[0.0f32; 3]; out_w * out_h];
+    let out_data = vec![[0.0f32; 3]; out_w * out_h];
+    let mut out_data = out_data.into_boxed_slice();
     let normalize = 1f32 / (SCALE * SCALE) as f32;
 
     let in_data = &in_data.data();
@@ -206,11 +209,11 @@ fn downscale_by_2(in_data: &LinearRgb) -> LinearRgb {
 fn ssim_map(
     width: usize,
     height: usize,
-    m1: &[Vec<f32>; 3],
-    m2: &[Vec<f32>; 3],
-    s11: &[Vec<f32>; 3],
-    s22: &[Vec<f32>; 3],
-    s12: &[Vec<f32>; 3],
+    m1: &[Box<[f32]>; 3],
+    m2: &[Box<[f32]>; 3],
+    s11: &[Box<[f32]>; 3],
+    s22: &[Box<[f32]>; 3],
+    s12: &[Box<[f32]>; 3],
 ) -> [f64; 3 * 2] {
     const C2: f32 = 0.0009f32;
 
@@ -252,10 +255,10 @@ fn ssim_map(
 fn edge_diff_map(
     width: usize,
     height: usize,
-    img1: &[Vec<f32>; 3],
-    mu1: &[Vec<f32>; 3],
-    img2: &[Vec<f32>; 3],
-    mu2: &[Vec<f32>; 3],
+    img1: &[Box<[f32]>; 3],
+    mu1: &[Box<[f32]>; 3],
+    img2: &[Box<[f32]>; 3],
+    mu2: &[Box<[f32]>; 3],
 ) -> [f64; 3 * 4] {
     let one_per_pixels = 1.0f64 / (width * height) as f64;
     let mut plane_averages = [0f64; 3 * 4];
@@ -472,7 +475,7 @@ mod tests {
             .to_rgb32f()
             .chunks_exact(3)
             .map(|chunk| [chunk[0], chunk[1], chunk[2]])
-            .collect::<Vec<_>>();
+            .collect::<Box<_>>();
         let source_data = Xyb::try_from(
             Rgb::new(
                 source_data,
@@ -488,7 +491,7 @@ mod tests {
             .to_rgb32f()
             .chunks_exact(3)
             .map(|chunk| [chunk[0], chunk[1], chunk[2]])
-            .collect::<Vec<_>>();
+            .collect::<Box<_>>();
         let distorted_data = Xyb::try_from(
             Rgb::new(
                 distorted_data,
