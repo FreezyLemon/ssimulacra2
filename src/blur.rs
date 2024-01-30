@@ -42,11 +42,12 @@ impl Blur {
     }
 
     /// Blur the given image.
-    pub fn blur(&mut self, img: &[Vec<f32>; 3]) -> [Vec<f32>; 3] {
+    pub fn blur(&mut self, img: &[f32]) -> [Vec<f32>; 3] {
+        let plane_len = self.width * self.height;
         [
-            self.blur_plane(&img[0]),
-            self.blur_plane(&img[1]),
-            self.blur_plane(&img[2]),
+            self.blur_plane(&img[0 * plane_len..][..plane_len]),
+            self.blur_plane(&img[1 * plane_len..][..plane_len]),
+            self.blur_plane(&img[2 * plane_len..][..plane_len]),
         ]
     }
 

@@ -98,11 +98,7 @@ where
     let mut width = img1.width();
     let mut height = img1.height();
 
-    let mut mul = [
-        vec![0.0f32; width * height],
-        vec![0.0f32; width * height],
-        vec![0.0f32; width * height],
-    ];
+    let mut mul = vec![0f32; 3 * width * height];
     let mut blur = Blur::new(width, height);
     let mut msssim = Msssim::default();
 
@@ -117,9 +113,7 @@ where
             width = img1.width();
             height = img2.height();
         }
-        for c in &mut mul {
-            c.truncate(width * height);
-        }
+        mul.truncate(3 * width * height);
         blur.shrink_to(width, height);
 
         let mut img1 = Xyb::from(img1.clone());
@@ -128,10 +122,8 @@ where
         make_positive_xyb(&mut img1);
         make_positive_xyb(&mut img2);
 
-        // SSIMULACRA2 works with the data in a planar format,
-        // so we need to convert to that.
-        let img1 = xyb_to_planar(&img1);
-        let img2 = xyb_to_planar(&img2);
+        let img1 = flatten_data(img1.into_data());
+        let img2 = flatten_data(img2.into_data());
 
         image_multiply(&img1, &img1, &mut mul);
         let sigma1_sq = blur.blur(&mul);
@@ -146,7 +138,7 @@ where
         let mu2 = blur.blur(&img2);
 
         let avg_ssim = ssim_map(width, height, &mu1, &mu2, &sigma1_sq, &sigma2_sq, &sigma12);
-        let avg_edgediff = edge_diff_map(width, height, &img1, &mu1, &img2, &mu2);
+        let avg_edgediff = edge_diff_map(width, height, &planarize(&img1), &mu1, &planarize(&img2), &mu2);
         msssim.scales.push(MsssimScale {
             avg_ssim,
             avg_edgediff,
@@ -175,32 +167,44 @@ fn make_positive_xyb(xyb: &mut Xyb) {
     }
 }
 
-fn xyb_to_planar(xyb: &Xyb) -> [Vec<f32>; 3] {
-    let mut out1 = vec![0.0f32; xyb.width() * xyb.height()];
-    let mut out2 = vec![0.0f32; xyb.width() * xyb.height()];
-    let mut out3 = vec![0.0f32; xyb.width() * xyb.height()];
-    for (((i, o1), o2), o3) in xyb
-        .data()
-        .iter()
-        .copied()
-        .zip(out1.iter_mut())
-        .zip(out2.iter_mut())
-        .zip(out3.iter_mut())
-    {
-        *o1 = i[0];
-        *o2 = i[1];
-        *o3 = i[2];
-    }
+fn flatten_data(data: Vec<[f32; 3]>) -> Vec<f32> {
+    let (ptr, length, capacity) = {
+        // We leak Vec<[f32; 3]> on purpose to reuse the memory as a Vec<f32>
+        let mut data = std::mem::ManuallyDrop::new(data);
+        let ptr = data.as_mut_ptr() as *mut f32;
+        let len = data.len();
+        let cap = data.capacity();
 
-    [out1, out2, out3]
+        (ptr, 3 * len, 3 * cap)
+    };
+
+    // SAFETY:
+    // - ptr was allocated by the global allocator through Vec<[f32; 3]>
+    // - f32 has the same alignment as [f32; 3]
+    // - [f32; 3] is three times the size of f32, so it follows that valid
+    //   length and capacity in the old Vec are also valid for the new Vec
+    unsafe {
+        Vec::from_raw_parts(ptr, length, capacity)
+    }
 }
 
-fn image_multiply(img1: &[Vec<f32>; 3], img2: &[Vec<f32>; 3], out: &mut [Vec<f32>; 3]) {
-    for ((plane1, plane2), out_plane) in img1.iter().zip(img2.iter()).zip(out.iter_mut()) {
-        for ((&p1, &p2), o) in plane1.iter().zip(plane2.iter()).zip(out_plane.iter_mut()) {
-            *o = p1 * p2;
-        }
+fn image_multiply(img1: &[f32], img2: &[f32], out: &mut [f32]) {
+    for ((p1, p2), out) in img1.iter().zip(img2).zip(out) {
+        *out = p1 * p2;
     }
+}
+
+// helper to ensure correctness during development
+fn planarize(flat: &[f32]) -> [Vec<f32>; 3] {
+    let len = flat.len();
+    assert_eq!(len % 3, 0);
+
+    let new_len = len / 3;
+    [
+        flat[0 * new_len..][..new_len].iter().copied().collect(),
+        flat[1 * new_len..][..new_len].iter().copied().collect(),
+        flat[2 * new_len..][..new_len].iter().copied().collect(),
+    ]
 }
 
 fn downscale_by_2(in_data: &LinearRgb) -> LinearRgb {
@@ -302,7 +306,8 @@ fn edge_diff_map(
     img2: &[Vec<f32>; 3],
     mu2: &[Vec<f32>; 3],
 ) -> [f64; 3 * 4] {
-    let one_per_pixels = 1.0f64 / (width * height) as f64;
+    let plane_size = width * height;
+    let one_per_pixels = 1.0f64 / plane_size as f64;
     let mut plane_averages = [0f64; 3 * 4];
 
     for c in 0..3 {

@@ -1,4 +1,5 @@
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
+use image::GenericImageView;
 use num_traits::clamp;
 use rand::Rng;
 use ssimulacra2::{
@@ -93,24 +94,15 @@ fn bench_ssimulacra2(c: &mut Criterion) {
     });
 }
 
-fn read_image(path: &str) -> ([Vec<f32>; 3], usize, usize) {
+fn read_image(path: &str) -> (Vec<f32>, usize, usize) {
     // Read in test_data/tank_source.png
     let img = image::open(path).unwrap();
-
-    let img = match img {
-        image::DynamicImage::ImageRgb8(img) => img,
-        x => x.to_rgb8(),
-    };
-
     let (width, height) = img.dimensions();
-
-    // Convert ImageBuffer to [Vec<f32>; 3]
-    let mut img_vec = [Vec::new(), Vec::new(), Vec::new()];
-    for (_i, pixel) in img.pixels().enumerate() {
-        img_vec[0].push(pixel[0] as f32);
-        img_vec[1].push(pixel[1] as f32);
-        img_vec[2].push(pixel[2] as f32);
-    }
+    let img_vec: Vec<f32> = img
+        .to_rgb32f()
+        .pixels()
+        .flat_map(|p| [p[0], p[1], p[2]])
+        .collect();
 
     (img_vec, width as usize, height as usize)
 }
