@@ -41,6 +41,8 @@
 
 mod blur;
 
+use std::fmt;
+
 pub use blur::Blur;
 pub use yuvxyb::{CastFromPrimitive, Frame, LinearRgb, Pixel, Plane, Rgb, Xyb, Yuv};
 pub use yuvxyb::{ColorPrimaries, MatrixCoefficients, TransferCharacteristic, YuvConfig};
@@ -50,22 +52,36 @@ pub use yuvxyb::{ColorPrimaries, MatrixCoefficients, TransferCharacteristic, Yuv
 const NUM_SCALES: usize = 6;
 
 /// Errors which can occur when attempting to calculate a SSIMULACRA2 score from two input images.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, thiserror::Error)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Ssimulacra2Error {
     /// The conversion from input image to [LinearRgb] (via [TryFrom]) returned an [Err].
     /// Note that the conversion from LinearRgb to [Xyb] cannot fail, which means that
     /// this is the only point of failure regarding image conversion.
-    #[error("Failed to convert input image to linear RGB")]
     LinearRgbConversionFailed,
 
     /// The two input images do not have the same width and height.
-    #[error("Source and distorted image width and height must be equal")]
     NonMatchingImageDimensions,
 
     /// One of the input images has a width and/or height of less than 8 pixels.
     /// This is not currently supported by the SSIMULACRA2 metric.
-    #[error("Images must be at least 8x8 pixels")]
     InvalidImageSize,
+}
+
+impl std::error::Error for Ssimulacra2Error {}
+
+impl fmt::Display for Ssimulacra2Error {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            Ssimulacra2Error::LinearRgbConversionFailed => {
+                write!(f, "Failed to convert input image to linear RGB")
+            }
+            Ssimulacra2Error::NonMatchingImageDimensions => write!(
+                f,
+                "Source and distorted image width and height must be equal"
+            ),
+            Ssimulacra2Error::InvalidImageSize => write!(f, "Images must be at least 8x8 pixels"),
+        }
+    }
 }
 
 /// Computes the SSIMULACRA2 score for a given input frame and the distorted
