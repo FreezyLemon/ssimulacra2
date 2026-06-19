@@ -1,20 +1,20 @@
 use std::collections::BTreeMap;
 use std::io::stderr;
-use std::sync::{mpsc, Arc, Mutex};
+use std::sync::{Arc, Mutex, mpsc};
 use std::time::Duration;
 use std::{
     path::{Path, PathBuf},
     time::{SystemTime, UNIX_EPOCH},
 };
 
-use av_metrics_decoders::{y4m::new_decoder_from_stdin, Decoder, VapoursynthDecoder};
+use av_metrics_decoders::{Decoder, VapoursynthDecoder, y4m::new_decoder_from_stdin};
 use crossterm::tty::IsTty;
 use image::ColorType;
 use indicatif::{HumanDuration, ProgressBar, ProgressDrawTarget, ProgressState, ProgressStyle};
 use num_traits::FromPrimitive;
 use ssimulacra2::{
-    compute_frame_ssimulacra2, ColorPrimaries, MatrixCoefficients, Pixel, TransferCharacteristic,
-    Yuv, YuvConfig,
+    ColorPrimaries, MatrixCoefficients, Pixel, TransferCharacteristic, Yuv, YuvConfig,
+    compute_frame_ssimulacra2,
 };
 use statrs::statistics::{Data, Distribution, Median, OrderStatistics};
 
@@ -136,10 +136,10 @@ fn calc_score<S: Pixel, D: Pixel, E: Decoder, F: Decoder>(
 
         let distance_to_next = guard.next_frame - guard.current_frame;
 
-        if let Some(end_frame) = end_frame {
-            if guard.next_frame >= end_frame {
-                return None;
-            }
+        if let Some(end_frame) = end_frame
+            && guard.next_frame >= end_frame
+        {
+            return None;
         }
 
         for ii in 1..distance_to_next {
@@ -328,12 +328,11 @@ fn compare_videos_inner<D: Decoder + 'static, E: Decoder + 'static>(
     mut dst_primaries: ColorPrimaries,
     dst_full_range: bool,
 ) {
-    if let Some(source_frame_count) = source_frame_count {
-        if let Some(distorted_frame_count) = distorted_frame_count {
-            if source_frame_count != distorted_frame_count {
-                eprintln!("WARNING: Frame count mismatch detected, scores may be inaccurate");
-            }
-        }
+    if let Some(source_frame_count) = source_frame_count
+        && let Some(distorted_frame_count) = distorted_frame_count
+        && source_frame_count != distorted_frame_count
+    {
+        eprintln!("WARNING: Frame count mismatch detected, scores may be inaccurate");
     }
 
     let source_info = source.get_video_details();
@@ -390,19 +389,15 @@ fn compare_videos_inner<D: Decoder + 'static, E: Decoder + 'static>(
     let dst_bd = dst_config.bit_depth;
 
     let current_frame = 0usize;
-    let end_frame = frames_to_compare
-        .map(|frames_to_compare| skip_frames + (frames_to_compare * inc));
+    let end_frame =
+        frames_to_compare.map(|frames_to_compare| skip_frames + (frames_to_compare * inc));
 
-    let video_compare = Arc::new(
-        Mutex::new(
-            VideoCompare {
-                current_frame,
-                next_frame: skip_frames,
-                source,
-                distorted,
-            }
-        )
-    );
+    let video_compare = Arc::new(Mutex::new(VideoCompare {
+        current_frame,
+        next_frame: skip_frames,
+        source,
+        distorted,
+    }));
 
     for _ in 0..frame_threads {
         let video_compare = Arc::clone(&video_compare);
@@ -461,7 +456,8 @@ fn compare_videos_inner<D: Decoder + 'static, E: Decoder + 'static>(
     let progress = if stderr().is_tty() && !verbose {
         let frame_count = source_frame_count.or(distorted_frame_count);
         let pb = if let Some(frame_count) = frame_count {
-            let fc = frames_to_compare.unwrap_or(frame_count - skip_frames)
+            let fc = frames_to_compare
+                .unwrap_or(frame_count - skip_frames)
                 .min(((frame_count - skip_frames) as f64 / inc as f64).ceil() as usize);
 
             ProgressBar::new(fc as u64)
@@ -563,10 +559,10 @@ fn compare_videos_inner<D: Decoder + 'static, E: Decoder + 'static>(
 }
 
 pub fn parse_matrix(input: &str) -> MatrixCoefficients {
-    if let Ok(intval) = input.parse::<u8>() {
-        if intval <= MatrixCoefficients::ICtCp as u8 {
-            return MatrixCoefficients::from_u8(intval).expect("Invalid matrix coefficient value");
-        }
+    if let Ok(intval) = input.parse::<u8>()
+        && intval <= MatrixCoefficients::ICtCp as u8
+    {
+        return MatrixCoefficients::from_u8(intval).expect("Invalid matrix coefficient value");
     }
 
     match input.to_ascii_lowercase().as_str() {
@@ -595,11 +591,11 @@ pub fn parse_matrix(input: &str) -> MatrixCoefficients {
 }
 
 pub fn parse_transfer(input: &str) -> TransferCharacteristic {
-    if let Ok(intval) = input.parse::<u8>() {
-        if intval <= TransferCharacteristic::HybridLogGamma as u8 {
-            return TransferCharacteristic::from_u8(intval)
-                .expect("Invalid transfer characteristics value");
-        }
+    if let Ok(intval) = input.parse::<u8>()
+        && intval <= TransferCharacteristic::HybridLogGamma as u8
+    {
+        return TransferCharacteristic::from_u8(intval)
+            .expect("Invalid transfer characteristics value");
     }
 
     match input.to_ascii_lowercase().as_str() {
@@ -629,10 +625,10 @@ pub fn parse_transfer(input: &str) -> TransferCharacteristic {
 }
 
 pub fn parse_primaries(input: &str) -> ColorPrimaries {
-    if let Ok(intval) = input.parse::<u8>() {
-        if intval <= ColorPrimaries::Tech3213 as u8 {
-            return ColorPrimaries::from_u8(intval).expect("Invalid color primaries value");
-        }
+    if let Ok(intval) = input.parse::<u8>()
+        && intval <= ColorPrimaries::Tech3213 as u8
+    {
+        return ColorPrimaries::from_u8(intval).expect("Invalid color primaries value");
     }
 
     match input.to_ascii_lowercase().as_str() {

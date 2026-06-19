@@ -1,14 +1,12 @@
 [package]
 name = "ssimulacra2_rs"
 version = "0.5.2"
-edition = "2021"
+edition = "2024"
+rust-version = "1.89"
 description = "CLI for the ssimulacra2 rust implementation"
 repository = "https://github.com/rust-av/ssimulacra2"
 homepage = "https://github.com/rust-av/ssimulacra2"
 license = "BSD-2-Clause"
-
-# When changing MSRV: Also update .github/workflows/rust.yml
-rust-version = "1.74"
 
 [dependencies]
 anyhow = "1.0.55"
@@ -39,5 +37,5 @@ default = ["video", "avif"]
 video = ["av-metrics-decoders", "plotters", "statrs", "num-traits"]
 avif = ["image/avif-native"]
 
-[lints.clippy]
-uninlined_format_args = "allow"
+[lints]
+workspace = true

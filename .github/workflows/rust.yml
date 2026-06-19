@@ -46,10 +46,8 @@ jobs:
           sudo make install
           sudo ldconfig
       # rust-version from Cargo.toml
-      - name: Install Rust 1.65.0
-        uses: dtolnay/rust-toolchain@1.65.0
-      - name: Use predefined lockfile
-        run: mv Cargo.lock.MSRV Cargo.lock
+      - name: Install Rust 1.89.0
+        uses: dtolnay/rust-toolchain@1.89.0
       - name: Build
         run: cargo check --locked
 

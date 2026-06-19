@@ -12,3 +12,9 @@ opt-level = 1
 
 [profile.dev]
 opt-level = 2
+
+[workspace.lints.clippy]
+# harmful to performance
+manual_div_ceil = "allow"
+# annoying
+uninlined_format_args = "allow"

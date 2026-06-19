@@ -6,7 +6,7 @@ use self::video::*;
 use clap::{Parser, Subcommand};
 #[cfg(feature = "video")]
 use ssimulacra2::MatrixCoefficients;
-use ssimulacra2::{compute_frame_ssimulacra2, ColorPrimaries, Rgb, TransferCharacteristic};
+use ssimulacra2::{ColorPrimaries, Rgb, TransferCharacteristic, compute_frame_ssimulacra2};
 use std::path::{Path, PathBuf};
 
 #[derive(Parser, Debug)]
