@@ -8,5 +8,4 @@ Rust implementation of the [SSIMULACRA2 metric](https://github.com/cloudinary/ss
 
 ## Minimum supported Rust version (MSRV)
 
-This crates requires a Rust version of 1.62.0 or higher. Increases in MSRV will result in a semver PATCH version increase.
-
+This crates requires a Rust version of 1.89.0 or higher. Increases in MSRV will result in a semver PATCH version increase.
